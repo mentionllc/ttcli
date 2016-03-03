@@ -1,0 +1,1 @@
+{"test.csv":{"transforms":{"订单ID":"number","城市":"string","是否差评":"string","下单渠道":"string"},"expands":{},"legacy":{"servertimestamp":null,"location":null},"delimiter":"\\t"}}

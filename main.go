@@ -76,7 +76,7 @@ func test(authFile string, configFile string, eventType string, fileName string)
 		defer w.Close()
 		defer f.Close()
 
-		if part, err = mpw.CreateFormFile("file", fi.Name()); err != nil {
+		if part, err = mpw.CreateFormFile("uploads", fi.Name()); err != nil {
 			log.Fatal(err)
 		}
 
@@ -112,8 +112,8 @@ func test(authFile string, configFile string, eventType string, fileName string)
 		panic(err)
 	}
 
-	configHash := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(b)
-
+	configHash := base64.StdEncoding.WithPadding(base64.StdPadding).EncodeToString(b)
+	fmt.Println("CONFIGHASH: ", configHash)
 	request.Header.Set("Content-Type", mpw.FormDataContentType())
 	request.Header.Set("QSV", "1")
 	request.Header.Set("Configuration", configHash)

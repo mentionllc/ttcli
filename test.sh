@@ -1,1 +1,0 @@
-ttcli --config-file config.json --auth-file auth.json --event-type test test.csv

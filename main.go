@@ -24,13 +24,14 @@ type Auth struct {
 func main() {
 	var authFile string
 	var configFile string
-	var eventType string
+	// var eventType string
 
 	app := cli.NewApp()
 	app.Name = "ttcli"
 	app.Usage = "for uploading data to Traintracks from the command line"
+	app.Version = "0.0.1"
 	app.Action = func(c *cli.Context) {
-		test(authFile, configFile, eventType, c.Args()[0])
+		send(authFile, configFile, c.Args()[0])
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -40,20 +41,21 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:        "config-file",
-			Usage:       "config file with type information of file",
+			Usage:       "config file with type data of file",
 			Destination: &configFile,
 		},
-		cli.StringFlag{
-			Name:        "event-type",
-			Usage:       "optional flag for explicitly using name for event type",
-			Destination: &eventType,
-		},
+		// TODO: finish in next iteration
+		// cli.StringFlag{
+		// 	Name:        "event-type",
+		// 	Usage:       "optional flag for explicitly using name for event type",
+		// 	Destination: &eventType,
+		// },
 	}
 
 	app.Run(os.Args)
 }
 
-func test(authFile string, configFile string, eventType string, fileName string) {
+func send(authFile string, configFile string, fileName string) {
 	var err error
 	var f *os.File
 	var fi os.FileInfo
@@ -112,8 +114,35 @@ func test(authFile string, configFile string, eventType string, fileName string)
 		panic(err)
 	}
 
-	configHash := base64.StdEncoding.WithPadding(base64.StdPadding).EncodeToString(b)
-	fmt.Println("CONFIGHASH: ", configHash)
+	var configHash string
+	configHash = base64.StdEncoding.WithPadding(base64.StdPadding).EncodeToString(b)
+
+	// TODO: finish in next iteration
+	// if eventType == "" {
+	// 	configHash = base64.StdEncoding.WithPadding(base64.StdPadding).EncodeToString(b)
+	// } else {
+	// 	// start eventType
+	// 	var oldConfig map[string]interface{}
+	// 	var newConfig map[string]interface{}
+	// 	newConfig = map[string]interface{}{}
+	// 	if err := json.Unmarshal(b, &oldConfig); err != nil {
+	// 		panic(err)
+	// 	}
+	// 	i := 1
+	// 	for k := range oldConfig {
+	// 		name := fmt.Sprintf("%s%d", eventType, i)
+	// 		newConfig[name+".csv"] = oldConfig[k]
+	// 		i++
+	// 	}
+	// 	configJson, err := json.Marshal(newConfig)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	fmt.Print(newConfig)
+	// 	configHash = base64.StdEncoding.WithPadding(base64.StdPadding).EncodeToString([]byte(configJson))
+	// 	// end eventType
+	// }
+
 	request.Header.Set("Content-Type", mpw.FormDataContentType())
 	request.Header.Set("QSV", "1")
 	request.Header.Set("Configuration", configHash)
@@ -130,7 +159,11 @@ func test(authFile string, configFile string, eventType string, fileName string)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(resp.StatusCode)
-	fmt.Print(resp.Body)
-	fmt.Print(string(ret))
+
+	if resp.StatusCode == 200 {
+		println("Data succcessfully sent.")
+	} else {
+		println("There was a problem with sending this file. Please email jeff@traintracks.io.")
+		fmt.Print(string(ret))
+	}
 }

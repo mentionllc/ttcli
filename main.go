@@ -40,27 +40,59 @@ func main() {
 			Action: func(c *cli.Context) {
 				println("sent events of file: ", c.Args().First())
 			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "auth-file, a",
+					Usage:       "file for authentication",
+					Destination: &authFile,
+				},
+			},
+		},
+		{
+			Name:  "csv",
+			Usage: "sends a csv file",
+			Action: func(c *cli.Context) {
+				if !csvCheckFlags(authFile, configFile, eventType) {
+					cli.ShowSubcommandHelp(c)
+				} else {
+					fmt.Println("asssssssssss")
+				}
+			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "auth-file, a",
+					Usage:       "file for authentication",
+					Destination: &authFile,
+				},
+				cli.StringFlag{
+					Name:        "config-file, c",
+					Usage:       "config file with type information of file",
+					Destination: &configFile,
+				},
+				cli.StringFlag{
+					Name:        "event-type, et",
+					Usage:       "optional flag for explicitly using name for event type",
+					Destination: &eventType,
+				},
+			},
 		},
 	}
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:        "auth-file",
-			Usage:       "file for authentication",
-			Destination: &authFile,
-		},
-		cli.StringFlag{
-			Name:        "config-file",
-			Usage:       "config file with type information of file",
-			Destination: &configFile,
-		},
-		cli.StringFlag{
-			Name:        "event-type",
-			Usage:       "optional flag for explicitly using name for event type",
-			Destination: &eventType,
-		},
-	}
+	app.Flags = []cli.Flag{}
 
 	app.Run(os.Args)
+}
+
+func csvCheckFlags(auth string, config string, eventtype string) (res bool) {
+	res = true
+	if auth == "" {
+		fmt.Println("You need to specify a auth file")
+		res = false
+	}
+	if config == "" {
+		fmt.Println("You need to specify a config file")
+		res = false
+	}
+	return res
 }
 
 func test(authFile string, configFile string, eventType string, fileName string) {

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,8 +20,10 @@ import (
 )
 
 type Auth struct {
-	ProductKey string `json:"product_key"`
-	UploadUrl  string `json:"upload_url"`
+	ProductKey    string `json:"product_key"`
+	ProductSecret string `json:"product_secret"`
+	CSVUrl        string `json:"csv_url"`
+	EventsUrl     string `json:"events_url"`
 }
 
 func main() {
@@ -38,7 +43,11 @@ func main() {
 			Aliases: []string{"e"},
 			Usage:   "sends a file file of events",
 			Action: func(c *cli.Context) {
-				println("sent events of file: ", c.Args().First())
+				if !eventCheckFlags(authFile) {
+					cli.ShowSubcommandHelp(c)
+				} else {
+					sendEvents(authFile, c.Args()[0])
+				}
 			},
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -52,10 +61,10 @@ func main() {
 			Name:  "csv",
 			Usage: "sends a csv file",
 			Action: func(c *cli.Context) {
-				if !csvCheckFlags(authFile, configFile, eventType) {
+				if !csvCheckFlags(authFile, configFile) {
 					cli.ShowSubcommandHelp(c)
 				} else {
-					fmt.Println("asssssssssss")
+					sendCSV(authFile, configFile, eventType, c.Args()[0])
 				}
 			},
 			Flags: []cli.Flag{
@@ -82,10 +91,10 @@ func main() {
 	app.Run(os.Args)
 }
 
-func csvCheckFlags(auth string, config string, eventtype string) (res bool) {
+func csvCheckFlags(auth string, config string) (res bool) {
 	res = true
 	if auth == "" {
-		fmt.Println("You need to specify a auth file")
+		fmt.Println("You need to specify an auth file")
 		res = false
 	}
 	if config == "" {
@@ -95,7 +104,16 @@ func csvCheckFlags(auth string, config string, eventtype string) (res bool) {
 	return res
 }
 
-func test(authFile string, configFile string, eventType string, fileName string) {
+func eventCheckFlags(auth string) (res bool) {
+	res = true
+	if auth == "" {
+		fmt.Println("You need to specify an auth file")
+		res = false
+	}
+	return res
+}
+
+func sendCSV(authFile string, configFile string, eventType string, fileName string) {
 	var err error
 	var f *os.File
 	var fi os.FileInfo
@@ -104,6 +122,8 @@ func test(authFile string, configFile string, eventType string, fileName string)
 	if f, err = os.Open(fileName); err != nil {
 		log.Fatal(err)
 	}
+
+	// check file stats for progressbar
 	if fi, err = f.Stat(); err != nil {
 		log.Fatal(err)
 	}
@@ -133,6 +153,7 @@ func test(authFile string, configFile string, eventType string, fileName string)
 		}
 	}()
 
+	// parse auth
 	var auth Auth
 	b, err := ioutil.ReadFile(authFile)
 	if err != nil {
@@ -144,7 +165,7 @@ func test(authFile string, configFile string, eventType string, fileName string)
 		panic(err)
 	}
 
-	request, err := http.NewRequest("POST", auth.UploadUrl, r)
+	request, err := http.NewRequest("POST", auth.CSVUrl, r)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,9 +176,7 @@ func test(authFile string, configFile string, eventType string, fileName string)
 	}
 
 	configHash := base64.StdEncoding.WithPadding(base64.StdPadding).EncodeToString(b)
-	fmt.Println("CONFIGHASH: ", configHash)
 	request.Header.Set("Content-Type", mpw.FormDataContentType())
-	request.Header.Set("QSV", "1")
 	request.Header.Set("Configuration", configHash)
 	request.Header.Set("X-Product-Key", auth.ProductKey)
 
@@ -175,4 +194,54 @@ func test(authFile string, configFile string, eventType string, fileName string)
 	fmt.Print(resp.StatusCode)
 	fmt.Print(resp.Body)
 	fmt.Print(string(ret))
+}
+
+func getProductAuth(key string, events []byte, secret string) string {
+	hasher := md5.New()
+	hasher.Write(append(events, []byte(secret)...))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func sendEvents(authFile string, fileName string) {
+
+	// parse auth
+	var auth Auth
+	b, err := ioutil.ReadFile(authFile)
+	if err != nil {
+		panic(err)
+	}
+
+	err = json.Unmarshal(b, &auth)
+	if err != nil {
+		panic(err)
+	}
+
+	f, err := os.Open(fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	file, err := ioutil.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	productAuth := getProductAuth(auth.ProductKey, file, auth.ProductSecret)
+
+	req, err := http.NewRequest("POST", auth.EventsUrl, bytes.NewBuffer(file))
+	req.Header.Set("X-Product-Key", auth.ProductKey)
+	req.Header.Set("X-Product-Auth", productAuth)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Headers:", resp.Header)
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Body:", string(body))
 }

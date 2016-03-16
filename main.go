@@ -30,7 +30,17 @@ func main() {
 	app.Name = "ttcli"
 	app.Usage = "for uploading data to Traintracks from the command line"
 	app.Action = func(c *cli.Context) {
-		test(authFile, configFile, eventType, c.Args()[0])
+		cli.ShowAppHelp(c)
+	}
+	app.Commands = []cli.Command{
+		{
+			Name:    "events",
+			Aliases: []string{"e"},
+			Usage:   "sends a file file of events",
+			Action: func(c *cli.Context) {
+				println("sent events of file: ", c.Args().First())
+			},
+		},
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
